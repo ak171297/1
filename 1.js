@@ -3,14 +3,19 @@ var fs = require('fs')
 //const logger = require('morgan')
 //const errorhandler = require('errorhandler')
 const mongodb= require('mongodb')
+const util = require('util')
 const bodyParser = require('body-parser')
-const csv=require('fast-csv')
+var csv = require('ya-csv');
+//const csv=require('fast-csv')
 const MongoClient = mongodb.MongoClient
 const url = 'mongodb://localhost:27017/mydb'
 let app = express()
+var counts = 0
+var arr = []
 //app.use(express.static('public'));
 //app.use(logger('dev'))
 //app.use(bodyParser.json())
+
 MongoClient.connect(url, (err, client) => {
   if (err) return process.exit(1)
   console.log('Kudos. Connected successfully to server')
@@ -28,23 +33,35 @@ MongoClient.connect(url, (err, client) => {
   };
   console.log(Userresponse);
   res.end(JSON.stringify(Userresponse));
-readData=fs.createReadStream(Userresponse.filename).pipe(csv())
-.on('data',function(data){collection.insert({'data':data});
-})
-.on('end',function(data){
-  console.log('read finshed')
-  var cursor = db.collection('jobs').find();
 
-var dblen = cursor.count(function (err, num) {
-    if(err) {
-        return console.log(err);
+    var reader = csv.createCsvFileReader(Userresponse.filename, { columnsFromHeader: true }); 
+reader.addListener('data', function(data) { db.collection('books').insertOne(data,{'filename':Userresponse.filename},function(err, result) {
+    if(!!err){
+        return res.end("Error uploading files.", err);
+    }else{
+        res.end("File is uploaded");
     }
-    return num;
-});
-console.log(dblen)
-})
+    });
+    })
+    //to add file name(but not adding)
+    db.collection('books').update({},
+      {$push : {"Filename":Userresponse.filename}},
+      {upsert:false,
+      multi:true}) 
+      .then(function(updateddata){console.log('data updated');})
+      //to count the number of doc(but returning the value before upload)
+db.collection('books').find("Number1").count()
+    .then(function(counts) {
+      console.log(counts); 
+      
+    })
+   arr =  db.collection('books')
+      .find({}, { "Number1": 1, _id:0 })
+      
+
 
 })
+
   // csv.fromPath(Userresponse.filename)
   //   .on('data', function(data) {
 
@@ -69,18 +86,21 @@ console.log(dblen)
    
  
 
-  app.get('/mydb', (req, res) => {
+app.get('/mydb', (req, res) => {
+  
     
-    
-  var arr = db.collection('ajay')
-      .find({}, { Number1: 1, _id:0 })
-      .toArray((error, number) => {
-        client.close();
-        if (error) return next(error)
-        res.send(number)
-        console.log(arr)
-      });
+    res.send(util.inspect(db.collection('books')
+    .find({}, { "Number1": 1, _id:0 })))
+  
+  // db.collection('books')
+  //     .find({}, { "Number1": 1, _id:0 })
+  //     .toArray((error, number) => {
+  //       client.close();
+  //       if (error) return next(error)
+  //       res.send(number)
       
+  //     });
+  //     console.log(arr)
   })
   app.listen(3000)
   // var num = db.ajay.find().toArray();
