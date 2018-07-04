@@ -1,49 +1,42 @@
 const express = require('express') 
 var fs = require('fs')
-var sa = require('superagent');
 var request = require('request');
-var stringSimilarity = require('string-similarity');
-//const logger = require('morgan')
-//const errorhandler = require('errorhandler')
 const mongodb= require('mongodb')
-const util = require('util')
 const bodyParser = require('body-parser')
 var csv = require('ya-csv');
-//const csv=require('fast-csv')
 const MongoClient = mongodb.MongoClient
 const url = 'mongodb://localhost:27017/mydb'
 let app = express()
 var counts = 0
 var arr = []
-var score = []
-var sizechk = 0
-//app.use(express.static('public'));
-//app.use(logger('dev'))
-//app.use(bodyParser.json())
-
+var score = 0
+var ak = 0.00
+var sizechk = 0.00
+var fscore = 0
+var average = 0
 MongoClient.connect(url, (err, client) => {
   if (err) return process.exit(1)
-  console.log('Kudos. Connected successfully to server')
-  var db = client.db('mydb');
-  var collection = db.collection('jobs')
+    console.log('Kudos. Connected successfully to server')
+   var db = client.db('mydb');
+   var collection = db.collection('books')
 
-  app.get('/UI.htm', function (req, res) {
+app.get('/UI.htm', function (req, res) {
     res.sendFile( __dirname + "/" + "UI.htm" );
   })
-  app.get('/process_get', function (req, res) {
+  
+app.get('/process_get', function (req, res) {
     // Prepare output in JSON format
-    const Userresponse = {
+  const Userresponse = {
       filename: req.query.filename,
       chk: req.query.chk
     };
     console.log(Userresponse);
     var reader = csv.createCsvFileReader(Userresponse.filename, { columnsFromHeader: true }); 
-    reader.addListener('data', function(data) {
-      data.filename = Userresponse.filename;
-      //console.log(data);
-      db.collection('books')
-        .insertOne(data, function(err, result) {
-        })
+     reader.addListener('data',async function(data) {
+       data.filename = await Userresponse.filename;
+        await db.collection('books')
+         .insertOne(data, function(err, result) {
+           })
     })
     async function run(){
     reader.addListener('end', function() {
@@ -53,7 +46,7 @@ MongoClient.connect(url, (err, client) => {
         sizechk = await call(counts)
        
         function call(forchk){
-         var a =  (forchk*Userresponse.chk)/100
+         var a =  parseInt((forchk*Userresponse.chk)/100)
           return a
            }
   
@@ -72,8 +65,6 @@ MongoClient.connect(url, (err, client) => {
       }
         async function  mainfunct(a){ 
            
-        //console.log(result[a].Number1)
-        // console.log(result[a].Name)
         await request.post(
           'https://mnz6d8xba6.execute-api.ap-south-1.amazonaws.com/production/api/v1/search',
           { json: { phone: result[a].Number1 } },
@@ -83,31 +74,39 @@ MongoClient.connect(url, (err, client) => {
                 await console.log(result[a].Name)
             
                 var str1 = await body.result.data[0].name
-                var patt = await new RegExp(/result[a].Name/ig)
-                var resa = await patt.test(str1);
-                console.log(resa)
-                      //if (resa) {
-                        //await console.log(body.result.data[0].name)
-                        //await console.log(result[a].Name)
-                        //await console.log(true);
-              //        //  score[a] = 100
-                    //} else {
-                        //await console.log(false);
-                       // await console.log(body.result.data[0].name)
-                  //await console.log(result[a].Name)
-              //          //score[a] = 0
-                    //}
-              //      //var fscore = fscore+score[i];
-              //     // var average = fscore/i;
-              //     // res.status(200).json(average)                             
+                var str2 = await result[a].Name
+                var list1 = await str2.split(" ")
+                var sizelist1 = await list1.length
+                var flag  = 0
+                for(var j=0;j<sizelist1;j++)
+                {
+                  var string3 = await list1[j]
+                  if(string3.length>2)
+                  {var patt = await new RegExp(string3, 'ig')
+                  var resa = await str1.match(patt);
+                    if (resa!=null) {
+                      flag=1;} 
+                  }
+                }
+                       if (flag) {
+                         console.log(true)
+                         score = await 100
+                       }else{
+                         console.log(false)
+                       score = await 0
+                    }
+                    ak = await score + ak
+                                          
               }
           }
-      );
-    }
+        )
+        
+      }
+      console.log(ak/sizechk)
     });
   })
 })
-}
+      }
 run();
   })
   app.listen(3000)
